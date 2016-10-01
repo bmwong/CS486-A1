@@ -1,6 +1,3 @@
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -9,31 +6,28 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.Locale;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 
 public class Part1 {
 	static HashMap<String, Node> masterMap;
-	
-	// For Making graph
+
+	// For parsing
 	static class Edge {
-		String beforePos;
+		String prevPos;
 		Node node;
 		double probability;
 		
-		public Edge(String beforePos, Node node, double probability) {
-			this.beforePos = beforePos;
+		public Edge(String prevPos, Node node, double probability) {
+			this.prevPos = prevPos;
 			this.node = node;
 			this.probability = probability;
 		}
 		
-		public String getBeforePos() {
-			return this.beforePos;
-		}
-		public Node getNode() {
-			return this.node;
-		}
-		public double getProbability() {
-			return this.probability;
-		}
+		public String getPrevPos() { return this.prevPos; }
+		public Node getNode() { return this.node; }
+		public double getProbability() { return this.probability; }
 	}
 	static class Node {
 		String word;
@@ -48,23 +42,22 @@ public class Part1 {
 			}			
 		}
 		
-		public String getWord() {
-			return this.word;
-		}
+		public String getWord() { return this.word; }
 		public ArrayList<Edge> getEdges(String pos) {
 			return posMap.get(pos);
 		}
+
 		public void addEdge(String pos1, String pos2, Node node, double probability) {
 			Edge edge = new Edge(pos1, node, probability);
 			posMap.get(pos2).add(edge);
 		}
-		
+
+		// For debugging purposes
 		public String toString() {
-			
-			String output = word + "\n";
+			String output = word + ": ";
 			for (ArrayList<Edge> edges : posMap.values()) {
 				for (Edge edge : edges) {
-					output += "(" + edge.getProbability() + " - " + edge.getNode().getWord() + "), ";
+					output += "(" + edge.getPrevPos() + " - " + edge.getProbability() + " - " + edge.getNode().getWord() + "), ";
 				}
 			}
 			return output;
@@ -72,12 +65,23 @@ public class Part1 {
 		
 	}
 	
-	boolean isValidSequence(Sequence sequence, ArrayList<String> sentenceSpec) {
-		
-		return false;
+	// For searching
+	static class Word {
+		String text;
+		String pos;
+		double probability;
+
+		public Word(String text, String pos, double probability) {
+			this.text = text;
+			this.pos = pos;
+			this.probability = probability;
+		}
+
+		public String getText() { return this.text; }
+		public String getPos() { return this.pos; }
+		public double getProbability() { return this.probability; }
+
 	}
-	
-	// For doing search
 	static class Sequence {
 		ArrayList<Word> words;
 
@@ -87,48 +91,42 @@ public class Part1 {
 		private Sequence(ArrayList<Word> words) {
 			this.words = new ArrayList<Word>(words);
 		}
-		
+
+		public Sequence copy() {
+			return new Sequence(this.words);
+		}
+
 		public int size() {
 			return words.size();
 		}
+
 		public Word getLastWord() {
 			return words.get(words.size() - 1);
 		}
+
+		public String getSentence(){
+			ArrayList<String> texts = new ArrayList<String>();
+			for (Word word : words) {
+				texts.add(word.getText());
+			}
+			return String.join(" ", texts);
+		}
+
+		public double getTotalProbability() {
+			double probability = 1;
+			for (Word word : words) {
+				probability *= word.getProbability();
+			}
+			return probability;
+		}
+
 		public boolean addWord(String word, String pos, double probability, ArrayList<String> sentenceSpec) {
-			if (sentenceSpec.size() > words.size() || sentenceSpec.get(words.size()).equals(pos)) {
+			if (words.size() < sentenceSpec.size() && sentenceSpec.get(words.size()).equals(pos)) {
 				this.words.add(new Word(word, pos, probability));
 				return true;
 			}
 			return false;
 		}
-		public Sequence copy() {
-			return new Sequence(this.words);
-		}		
-		public double getTotalProbability() {
-			return 0;
-		}
-	}
-	static class Word {
-		String text;
-		String pos;
-		double probability;
-		
-		public Word(String text, String pos, double probability) {
-			this.text = text;
-			this.pos = pos;
-			this.probability = probability;
-		}
-		
-		public String getText() {
-			return this.text;
-		}
-		public String getPos() {
-			return this.pos;
-		}
-		public double getProbability() {
-			return this.probability;
-		}
-		
 	}
 	
 	private static Node getNodeFromMaster(String word, ArrayList<String> sentenceSpec) {
@@ -136,24 +134,53 @@ public class Part1 {
 			Node newNode = new Node(word, sentenceSpec);
 			masterMap.put(word, newNode);
 			return newNode;			
-		} else return masterMap.get(word);
+		} 
+		else { return masterMap.get(word); }
 	}
 	
 	public static String bfs(Node root, ArrayList<String> sentenceSpec) {
+		ArrayList<Sequence> validSequences = new ArrayList<Sequence>();
+		int nodesConsidered = 0;
 		Sequence rootSeq = new Sequence();
 		rootSeq.addWord(root.getWord(), sentenceSpec.get(0), 1, sentenceSpec);
 		Queue queue = new LinkedList();
 		queue.add(rootSeq);
+
 		while(!queue.isEmpty()) {
 			Sequence seq = (Sequence)queue.remove();
+			if (seq.size() == sentenceSpec.size()) {
+				validSequences.add(seq);
+				continue;
+			}
+
 			Word word = seq.getLastWord();
 			Node node = masterMap.get(word.getText());
-			
-			for (Edge edge : node.getEdges(sentenceSpec.get(seq.size()))) {
-				// HERE
+			String nextPos = sentenceSpec.get(seq.size());
+			for (Edge edge : node.getEdges(nextPos)) {
+				nodesConsidered++;
+				if (edge.getPrevPos().equals(word.getPos())) {
+					Sequence newSeq = seq.copy();
+					Node nextNode = edge.getNode();
+					if (newSeq.addWord(nextNode.getWord(), nextPos, edge.getProbability(), sentenceSpec)){
+						queue.add(newSeq);
+					}
+				}
 			}
 		}
-		return "";
+		
+		double maxProbability = 0;
+		Sequence maxProbabilitySeq = null;
+		for (Sequence seq : validSequences){
+			if (seq.getTotalProbability() > maxProbability) {
+				maxProbability = seq.getTotalProbability();
+				maxProbabilitySeq = seq;
+			}
+		}
+
+		DecimalFormat df = new DecimalFormat("0", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+		df.setMaximumFractionDigits(340);
+
+		return "\"" + maxProbabilitySeq.getSentence() + "\" with probability " + df.format(maxProbability) + "\nTotal nodes considered: " + nodesConsidered;
 	}
 	
 	/*
@@ -163,7 +190,7 @@ public class Part1 {
 	 */
 	public static String generate(String startingWord, ArrayList<String> sentenceSpec, String graph) {
 		masterMap = new HashMap<String, Node>();
-				
+		// Parse input
 		for (String line : graph.split("\n")) {
 			String[] parts = line.split("//");
 			String[] firstTag = parts[0].split("/");
@@ -179,14 +206,14 @@ public class Part1 {
 				n1.addEdge(pos1, pos2, n2, probability);
 			}
 		}
-		return masterMap.get(startingWord).toString();
+		return bfs(getNodeFromMaster(startingWord, sentenceSpec), sentenceSpec);
 	}
 	
 	public static void main(String[] args) {
 		try {
-			byte[] encoded = Files.readAllBytes(Paths.get("test.txt"));
+			byte[] encoded = Files.readAllBytes(Paths.get("input.txt"));
 			
-			String startingWord = "benjamin";
+			String startingWord = "hans";
 			String graph = new String(encoded, StandardCharsets.UTF_8);
 			ArrayList<String> sentenceSpec = new ArrayList<String>() {{
 				add("NNP");
