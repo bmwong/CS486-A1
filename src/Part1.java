@@ -13,19 +13,18 @@ import java.text.DecimalFormatSymbols;
 public class Part1 {
 	static HashMap<String, Node> masterMap;
 
-	// For parsing
 	static class Edge {
-		String prevPos;
+		String beforePos;
 		Node node;
 		double probability;
 		
-		public Edge(String prevPos, Node node, double probability) {
-			this.prevPos = prevPos;
+		public Edge(String beforePos, Node node, double probability) {
+			this.beforePos = beforePos;
 			this.node = node;
 			this.probability = probability;
 		}
 		
-		public String getPrevPos() { return this.prevPos; }
+		public String getBeforePos() { return this.beforePos; }
 		public Node getNode() { return this.node; }
 		public double getProbability() { return this.probability; }
 	}
@@ -57,7 +56,7 @@ public class Part1 {
 			String output = word + ": ";
 			for (ArrayList<Edge> edges : posMap.values()) {
 				for (Edge edge : edges) {
-					output += "(" + edge.getPrevPos() + " - " + edge.getProbability() + " - " + edge.getNode().getWord() + "), ";
+					output += "(" + edge.getBeforePos() + " - " + edge.getProbability() + " - " + edge.getNode().getWord() + "), ";
 				}
 			}
 			return output;
@@ -65,7 +64,6 @@ public class Part1 {
 		
 	}
 	
-	// For searching
 	static class Word {
 		String text;
 		String pos;
@@ -158,7 +156,7 @@ public class Part1 {
 			String nextPos = sentenceSpec.get(seq.size());
 			for (Edge edge : node.getEdges(nextPos)) {
 				nodesConsidered++;
-				if (edge.getPrevPos().equals(word.getPos())) {
+				if (edge.getBeforePos().equals(word.getPos())) {
 					Sequence newSeq = seq.copy();
 					Node nextNode = edge.getNode();
 					if (newSeq.addWord(nextNode.getWord(), nextPos, edge.getProbability(), sentenceSpec)){
@@ -212,16 +210,49 @@ public class Part1 {
 	public static void main(String[] args) {
 		try {
 			byte[] encoded = Files.readAllBytes(Paths.get("input.txt"));
+			String graph = new String(encoded, StandardCharsets.UTF_8);
 			
 			String startingWord = "hans";
-			String graph = new String(encoded, StandardCharsets.UTF_8);
 			ArrayList<String> sentenceSpec = new ArrayList<String>() {{
 				add("NNP");
 				add("VBD");
 				add("DT");
 				add("NN");
 			}};
-			
+			System.out.println(generate(startingWord, sentenceSpec, graph));
+
+			startingWord = "benjamin";
+			System.out.println(generate(startingWord, sentenceSpec, graph));
+
+			startingWord = "a";
+			sentenceSpec = new ArrayList<String>() {{
+				add("DT");
+				add("NN");
+				add("VBD");
+				add("NNP");
+			}};
+			System.out.println(generate(startingWord, sentenceSpec, graph));
+
+			startingWord = "benjamin";
+			sentenceSpec = new ArrayList<String>() {{
+				add("NNP");
+				add("VBD");
+				add("DT");
+				add("JJS");
+				add("NN");
+			}};
+			System.out.println(generate(startingWord, sentenceSpec, graph));
+
+			startingWord = "a";
+			sentenceSpec = new ArrayList<String>() {{
+				add("DT");
+				add("NN");
+				add("VBD");
+				add("NNP");
+				add("IN");
+				add("DT");
+				add("NN");
+			}};
 			System.out.println(generate(startingWord, sentenceSpec, graph));
 			
 		} catch (IOException e) {
