@@ -6,11 +6,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.Stack;
+
 import java.util.Locale;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 
-public class Part1 {
+public class Part3 {
 	static HashMap<String, Node> masterMap;
 
 	static class Edge {
@@ -80,14 +82,37 @@ public class Part1 {
 		public double getProbability() { return this.probability; }
 
 	}
+	static class Child {
+		Word word;
+		boolean visited;
+		
+		public Child(Word word) {
+			this.word = word;
+			this.visited = false;
+		}
+		
+		public Word getWord() {
+			return this.word;
+		}
+		public boolean isVisited() {
+			return this.visited;
+		}
+		
+		public void visit() {
+			this.visited = true;
+		}
+	}
 	static class Sequence {
 		ArrayList<Word> words;
+		ArrayList<Child> children;
 
 		public Sequence() {
 			this.words = new ArrayList<Word>();
+			this.children = new ArrayList<Child>();
 		}
 		private Sequence(ArrayList<Word> words) {
 			this.words = new ArrayList<Word>(words);
+			this.children = new ArrayList<Child>();
 		}
 
 		public Sequence copy() {
@@ -117,6 +142,20 @@ public class Part1 {
 			}
 			return probability;
 		}
+		
+		public Word getNextChild() {
+			for (Child child : children) {
+				if (!child.isVisited()) {
+					child.visit();
+					return child.getWord();
+				}
+			}
+			return null;
+		}
+		
+		public boolean hasChildren() {
+			return !this.children.isEmpty();
+		}
 
 		public boolean addWord(String word, String pos, double probability, ArrayList<String> sentenceSpec) {
 			if (words.size() < sentenceSpec.size() && sentenceSpec.get(words.size()).equals(pos)) {
@@ -124,6 +163,21 @@ public class Part1 {
 				return true;
 			}
 			return false;
+		}
+		
+		public boolean addWord(Word word, ArrayList<String> sentenceSpec) {
+			if (words.size() < sentenceSpec.size() && sentenceSpec.get(words.size()).equals(word.getPos())) {
+				this.words.add(word);
+				return true;
+			}
+			return false;
+		}
+		
+		public void addChild(String word, String pos, double probability, ArrayList<String> sentenceSpec){
+			if (words.size() < sentenceSpec.size() && sentenceSpec.get(words.size()).equals(pos)) {
+				Word childWord = new Word(word, pos, probability);
+				children.add(new Child(childWord));
+			}
 		}
 	}
 	
@@ -191,16 +245,74 @@ public class Part1 {
 		Stack stack = new Stack();
 		stack.push(rootSeq);
 
-		/*while(!stack.isEmpty()) {
+		while(!stack.isEmpty()) {
+			Sequence seq = (Sequence)stack.peek();
+			if (seq.size() == sentenceSpec.size()) {
+				validSequences.add(seq);
+				stack.pop();
+				continue;
+			}
+			
+			if (!seq.hasChildren()) {
+				Word word = seq.getLastWord();
+				Node node = masterMap.get(word.getText());
+				String nextPos = sentenceSpec.get(seq.size());
+				for (Edge edge : node.getEdges(nextPos)) {
+					nodesConsidered++;
+					if (edge.getBeforePos().equals(word.getPos())) {
+						Node nextNode = edge.getNode();
+						seq.addChild(nextNode.getWord(), nextPos, edge.getProbability(), sentenceSpec);
+					}
+				}
+			}
+			
+			Word child = seq.getNextChild();
+			if (child != null) {
+				Sequence newSeq = seq.copy();
+				if (newSeq.addWord(child, sentenceSpec)){
+					stack.push(newSeq);
+				}
+			} 
+			else {
+				stack.pop();
+			}
+		}
 
-		}*/
+		double maxProbability = 0;
+		Sequence maxProbabilitySeq = null;
+		for (Sequence seq : validSequences){
+			if (seq.getTotalProbability() > maxProbability) {
+				maxProbability = seq.getTotalProbability();
+				maxProbabilitySeq = seq;
+			}
+		}
 
-		return "";
+		DecimalFormat df = new DecimalFormat("0", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+		df.setMaximumFractionDigits(340);
+
+		return "\"" + maxProbabilitySeq.getSentence() + "\" with probability " + df.format(maxProbability) + "\nTotal nodes considered: " + nodesConsidered;
 	}
 	
 	// HEURISTIC SEARCH
 	public static String heuristic(Node root, ArrayList<String> sentenceSpec) {
+		ArrayList<Sequence> sequences;
+		
 		return "";
+	}
+	
+	private static double recursive(Node node, ArrayList<String> sentenceSpec, int index, double probability) {
+		if (index == sentenceSpec.size()) {
+			return 1;
+		}
+		else {
+			double newProbability = probability;
+			for (Edge edge : node.getEdges(sentenceSpec.get(index))) {
+				if (edge.getBeforePos().equals(sentenceSpec.get(index))) {
+					newProbability *= recursive(edge.getNode(), sentenceSpec, index+1, edge.getProbability());
+				}
+			}
+			return newProbability;
+		}
 	}
 	
 	/*
@@ -244,7 +356,7 @@ public class Part1 {
 		try {
 			byte[] encoded = Files.readAllBytes(Paths.get("input.txt"));
 			String graph = new String(encoded, StandardCharsets.UTF_8);
-			String[] searchStrategies = { "BREADTH_FIRST", "DEPTH_FIRST", "HEURISTIC"}
+			String[] searchStrategies = { "BREADTH_FIRST", "DEPTH_FIRST", "HEURISTIC"};
 			
 			for (String searchStrategy : searchStrategies) {
 				System.out.println(searchStrategy);
