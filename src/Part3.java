@@ -295,12 +295,49 @@ public class Part3 {
 	
 	// HEURISTIC SEARCH
 	public static String heuristic(Node root, ArrayList<String> sentenceSpec) {
-		ArrayList<Sequence> sequences;
-		
-		return "";
+		HashMap<Sequence, Double> sequences = new HashMap<Sequence, Double>();
+		Sequence goalSeq;
+		int nodesConsidered = 0;
+		Sequence rootSeq = new Sequence();
+		rootSeq.addWord(root.getWord(), sentenceSpec.get(0), 1, sentenceSpec);
+		sequences.put(rootSeq, rootSeq.getTotalProbability());
+
+		Sequence maxProbabilitySeq = null;
+		while (true) {
+			double maxProbability = 0;
+			for (Sequence seq : sequences.keySet()) {
+				nodesConsidered++;
+				if (sequences.get(seq) > maxProbability) {
+					maxProbabilitySeq = seq;
+				}
+			}
+			sequences.remove(maxProbabilitySeq);
+
+			if (maxProbabilitySeq.size() == sentenceSpec.size()) {
+				break;
+			}
+			else {
+				Word word = maxProbabilitySeq.getLastWord();
+				Node node = masterMap.get(word.getText());
+				String nextPos = sentenceSpec.get(maxProbabilitySeq.size());
+				for (Edge edge : node.getEdges(nextPos)) {
+					if (edge.getBeforePos().equals(word.getPos())) {
+						Sequence newSeq = maxProbabilitySeq.copy();
+						Node nextNode = edge.getNode();
+						if (newSeq.addWord(nextNode.getWord(), nextPos, edge.getProbability(), sentenceSpec)){
+							sequences.put(newSeq, estimateProbability(nextNode, sentenceSpec, newSeq.size(), newSeq.getTotalProbability()));
+						}
+					}
+				}
+			}
+		}
+
+		DecimalFormat df = new DecimalFormat("0", DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+		df.setMaximumFractionDigits(340);
+
+		return "\"" + maxProbabilitySeq.getSentence() + "\" with probability " + df.format(maxProbabilitySeq.getTotalProbability()) + "\nTotal nodes considered: " + nodesConsidered;
 	}
-	
-	private static double recursive(Node node, ArrayList<String> sentenceSpec, int index, double probability) {
+	private static double estimateProbability(Node node, ArrayList<String> sentenceSpec, int index, double probability) {
 		if (index == sentenceSpec.size()) {
 			return 1;
 		}
@@ -308,7 +345,7 @@ public class Part3 {
 			double newProbability = probability;
 			for (Edge edge : node.getEdges(sentenceSpec.get(index))) {
 				if (edge.getBeforePos().equals(sentenceSpec.get(index))) {
-					newProbability *= recursive(edge.getNode(), sentenceSpec, index+1, edge.getProbability());
+					newProbability *= estimateProbability(edge.getNode(), sentenceSpec, index + 1, edge.getProbability());
 				}
 			}
 			return newProbability;
