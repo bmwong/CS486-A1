@@ -296,7 +296,6 @@ public class Part3 {
 	// HEURISTIC SEARCH
 	public static String heuristic(Node root, ArrayList<String> sentenceSpec) {
 		HashMap<Sequence, Double> sequences = new HashMap<Sequence, Double>();
-		Sequence goalSeq;
 		int nodesConsidered = 0;
 		Sequence rootSeq = new Sequence();
 		rootSeq.addWord(root.getWord(), sentenceSpec.get(0), 1, sentenceSpec);
@@ -326,6 +325,7 @@ public class Part3 {
 						Node nextNode = edge.getNode();
 						if (newSeq.addWord(nextNode.getWord(), nextPos, edge.getProbability(), sentenceSpec)){
 							sequences.put(newSeq, estimateProbability(nextNode, sentenceSpec, newSeq.size(), newSeq.getTotalProbability()));
+							//System.out.println(estimateProbability(nextNode, sentenceSpec, newSeq.size(), newSeq.getTotalProbability()));
 						}
 					}
 				}
@@ -338,8 +338,9 @@ public class Part3 {
 		return "\"" + maxProbabilitySeq.getSentence() + "\" with probability " + df.format(maxProbabilitySeq.getTotalProbability()) + "\nTotal nodes considered: " + nodesConsidered;
 	}
 	private static double estimateProbability(Node node, ArrayList<String> sentenceSpec, int index, double probability) {
+		
 		if (index == sentenceSpec.size()) {
-			return 1;
+			return probability;
 		}
 		else {
 			double newProbability = probability;
@@ -350,6 +351,39 @@ public class Part3 {
 			}
 			return newProbability;
 		}
+		
+		/*
+		if (index == sentenceSpec.size()) {
+			return probability;
+		}
+		else {
+			Edge maxEdge = null;
+			for (Edge edge : node.getEdges(sentenceSpec.get(index))) {
+				if (edge.getBeforePos().equals(sentenceSpec.get(index))) {
+					if (maxEdge == null || edge.getProbability() > maxEdge.getProbability()) {
+						maxEdge = edge;
+					}
+				}
+			}
+			if (maxEdge == null) return probability;
+			return probability*estimateProbability(maxEdge.getNode(), sentenceSpec, index + 1, maxEdge.getProbability());
+		}
+		if (index == sentenceSpec.size()) {
+			return probability;
+		}
+		else {
+			double num = 0;
+			double denom = 0;
+			for (Edge edge : node.getEdges(sentenceSpec.get(index))) {
+				if (edge.getBeforePos().equals(sentenceSpec.get(index))) {
+					num += estimateProbability(edge.getNode(), sentenceSpec, index + 1, edge.getProbability());
+					denom++;
+				}
+			}
+			if (denom != 0) return (num/denom)*probability;
+			else return probability;
+		}
+		*/
 	}
 	
 	/*
